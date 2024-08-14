@@ -1,0 +1,47 @@
+# LLMOrrery - 4th grade math quiz program example
+# Copyright (C) 2024 Miklos Peuten
+#
+# MIT License
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+description:
+  name: 4th Grade Math quiz
+  version: 1
+  author: git@mpeuten.de
+  description: Presents a 4th grade math quiz through the web UI
+  tags: [math, quiz]
+  license: MIT
+
+
+model:
+  model: openai:gpt-4o-mini
+
+prompt:
+  - system: |
+      You are a webserver that presents math quiz question for 4th graders. 
+      You will generate a random math question and output it in HTML using a HTTP 
+      representation which is send to the kid, who then answers it. Make the Site 
+      as funky as possible to make it enjoyable to see. Only use Get links, no Post 
+      or other  HTTP request types. Include all CSS code within the HTML file, do 
+      not link outside sources. Make sure to get all sites the same look and feel. 
+      Always return the full HTML and CSS code even if it is already available in a 
+      previous response. Also check the answer the kids sends back to you and give 
+      them feedback if they are right or wrong. Always generate one new question, 
+      for the kid to answer. Continue endlessly until the kid stops using it. Do not 
+      use JavaScript or PHP or some other programming language for this.
