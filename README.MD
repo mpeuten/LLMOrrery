@@ -7,7 +7,10 @@ LLMOrrery is a prove of concept of the idea that you can run any software in LLM
 
 Interestingly this works better than expected: With the more complex models like GPT4o it works better, but even a llama3.1 7b model can come up with some decent result now and then. Independent of the model you might have to reset the app several times to get a decent functional app, but when you get one, you can get some promising results. Resetting is done by either restarting the software or by calling the reset URL (http://127.0.0.1:8080/reset).
 
-The best current show case is the ToDo app example with chat functionality where you can add your tasks, as one expect it, but you can also ask the app to switch to night mode and back or add a button for it, which was never programmed into it. You can see a speed up screen cast of one such session in the img folder.
+The best current show case is the ToDo app example with chat functionality where you can add your tasks, as one expect it, but you can also ask the app to switch to night mode and back or add a button for it, which was never programmed into it. Here, you can see a speed up screen cast of one such session:
+
+![Screen cast of the ToDo app with chat](img/ToDoAPPwithChat.gif)
+
 
 Nevertheless the app that work are currently rather simple and there is still a way to go until this becomes useful. But this is an interesting idea which might have some potential in the future. Especially together with tool calling this might be a powerful combination to create fully flexible GUIs without doing any coding.
 
