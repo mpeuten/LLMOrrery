@@ -104,9 +104,9 @@ This is currently not use by the software but might help to understand what it i
 ## Model
 Contains model specific settings.
 - `model`: Model to use (e.g. `ollama:llama3.1`, `openai:openai:gpt-4o-mini`), always a combination of model provider + ":" + model name. Currently following providers are supported:
-- - openai
-- - ollama
-
+    - openai
+    - ollama
+- `sessiontype`: Whether to use one shared history for all users or to have on history per user. For the latter set to `user`, for the former set to `global`, which is the default value if not given.
 ## Prompt
 Contains the prompt of the software, which is a list of at least one to many messages
 containing the role and content of the message. The first message should always be the system message.
@@ -119,7 +119,7 @@ containing the role and content of the message. The first message should always 
 ## Possible future extensions
 - Support HTTP POST 
 - Function calling support
-- Options to have a session per user and not per server
+- ~~Options to have a session per user and not per server~~ ✓
 - Add groq support
 - Some form of long term memory
 

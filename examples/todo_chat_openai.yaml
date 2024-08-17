@@ -22,13 +22,15 @@
 # SOFTWARE.
 description:
   name: AI website
-  version: 2
+  version: 3
   author: git@mpeuten.de
   description: ToDo APP with chat functionality
   license: MIT
 
 model:
   model: openai:gpt-4o
+  sessiontype: user
+
 
 prompt:
   - system: |

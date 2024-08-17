@@ -20,11 +20,12 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
 import os
 import argparse
 import time
+import uuid
 import yaml
 import ollama
 from dotenv import load_dotenv
 from openai import OpenAI
-from flask import Flask, request, Response, send_from_directory, redirect
+from flask import Flask, request, Response, send_from_directory, redirect, session
 
 
 class LLMOrrery:
@@ -32,11 +33,11 @@ class LLMOrrery:
         LLMOrrery run your software using a LLM as an interpreter.
     """
 
-    def __init__(self, arguments) -> None:
+    def __init__(self, arguments: argparse.Namespace) -> None:
+        # Setup Sesssions
+        self.session: dict[str, dict] = {}
+        # Get Arguments
         self.args = arguments
-        # Setup Log Filename
-        self._setup_logfile()
-        print(f"Log File name: {self.filename}")
         # load the config file
         self._load_config()
         # Update Model if given in the arguemnts
@@ -44,51 +45,49 @@ class LLMOrrery:
             self.config["model"]["model"] = arguments.model
         # print Model to use
         print(f"Model to use: {self.config['model']['model']}")
-        # setup prompts
-        self._setup_prompts()
-        # seup flask app
+        # setup model object
+        self.model = self._get_model_object(self.config["model"]["model"])
+        # setup flask app
         self.app = Flask(__name__)
+        # Set secret Key
+        self.app.secret_key = os.urandom(24)
         # add routes
         self._register_routes()
-        # get model object
-        self.model = self._get_model_object(self.config["model"]["model"])
 
-    def _setup_logfile(self):
-        # Set logfilename if given use the path from the arguemnts else use the same
-        # locaion as the config file
-        # First filename component:
+    def _setup_logfile(self) -> str:
+        """
+        Gives the logfile path back based on the arguments given to the programm
+        """
         filename = os.path.basename(self.args.configfile)[
             :-5]+"_"+time.strftime("%Y%m%d-%H%M%S")+".yaml"
         if self.args.logpath is not None:
-            self.filename = os.path.join(args.logpath, filename)
-        else:
-            self.filename = os.path.join(
-                os.path.dirname(self.args.configfile), filename)
-        return self.filename
+            return str(os.path.join(args.logpath, filename))
+        return str(os.path.join(os.path.dirname(self.args.configfile), filename))
 
-    def _load_config(self):
+    def _load_config(self) -> None:
         """
         Loads the configuration from the given configfile
         """
         with open(self.args.configfile, "r", encoding="utf-8") as fin:
             self.config = yaml.safe_load(fin)
 
-    def _setup_prompts(self):
+    def _setup_prompts(self) -> list[dict[str, str]]:
         """
         Sets up the prompts for the LLM
         """
-        self.prompts = []
+        prompts = []
         for row in self.config["prompt"]:
             key = list(row.keys())[0]
             if key == "system":
                 row[key] += (
-                    "\nReson first on what the user expects in the site to see and than generate the HTML "
+                    "\nReason first on what the user expects in the site to see and than generate the HTML "
                     "code for that site. When you have made you analysis, write the HTML code, "
                     "by starting with <!DOCTYPE html> and ending with </html>."
                 )
-            self.prompts.append({"role": key, "content": row[key]})
+            prompts.append({"role": key, "content": row[key]})
+        return prompts
 
-    def _register_routes(self):
+    def _register_routes(self) -> None:
         """
         Registers the routes for the LLM
         """
@@ -99,7 +98,7 @@ class LLMOrrery:
         self.app.route("/<path:path>", methods=["GET"])(self.catch_all_get)
 
     @staticmethod
-    def _clean_html_response(response):
+    def _clean_html_response(response: str) -> str:
         """
         Cleans the HTML response from the LLM
         """
@@ -125,40 +124,50 @@ class LLMOrrery:
 
     @staticmethod
     def _get_model_object(model_name: str):
+        """
+        Returns the appropiate model object from the model name
+        """
         if model_name.startswith("ollama:"):
             # ollama model
             model_path = model_name.split(":", maxsplit=1)[1]
-            client = ollama.Client()
-            return lambda x: client.chat(model=model_path, messages=x, stream=False)["message"]["content"]
+            client_ollama = ollama.Client()
+            return lambda x: client_ollama.chat(model=model_path, messages=x, stream=False)["message"]["content"]
         if model_name.startswith("openai:"):
             # openai model
             model_path = model_name.split(":", maxsplit=1)[1]
-            client = OpenAI()
-            return lambda x: client.chat.completions.create(model=model_path, messages=x, stream=False).choices[0].message.content
+            client_openai = OpenAI()
+            return lambda x: client_openai.chat.completions.create(model=model_path, messages=x, stream=False).choices[0].message.content
         raise Exception(f"Unknown model type {model_name}")
 
-    def _export_to_file(self):
-        with open(self.filename, "w", encoding="utf-8") as fout:
+    def _export_to_file(self, user_id: str) -> None:
+        """
+        Exports the session to a file
+        """
+        with open(self.session[user_id]["filename"], "w", encoding="utf-8") as fout:
             export = {
                 "model": self.config["model"],
                 "description": self.config["description"],
-                "prompt": [{item["role"]: item["content"]} for item in self.prompts],
+                "prompt": [{item["role"]: item["content"]} for item in self.session[user_id]["prompts"]],
             }
             yaml.dump(export, fout)
 
-    def catch_all_get(self, path):
+    def catch_all_get(self, path: str):
         """
         Catches all GET requests and generates a response based on the request
         """
+
+        user_id = self._session_handling()
+
         # get user prompt from request
         user_prompt = f"{request.remote_addr}:\nGET {request.full_path} HTTP/1.1\n"
-        self.prompts.append({"role": "user", "content": user_prompt})
+        self.session[user_id]["prompts"].append(
+            {"role": "user", "content": user_prompt})
 
         # get response from LLM
-        response = self.model(self.prompts)
+        response = self.model(self.session[user_id]["prompts"])
 
         # add response to prompts
-        self.prompts.append(
+        self.session[user_id]["prompts"].append(
             {"role": "assistant", "content": response}
         )
 
@@ -166,7 +175,7 @@ class LLMOrrery:
         clean_response = self._clean_html_response(response)
 
         # export the conversation to a file
-        self._export_to_file()
+        self._export_to_file(user_id)
 
         # return the cleaned response
         return Response(clean_response, mimetype="text/html")
@@ -175,9 +184,10 @@ class LLMOrrery:
         """
             Resets the current conversation by clearing the prompts and reloading the initial prompt from the config file.
         """
-        self._setup_prompts()
-        self._setup_logfile()
-        print(f"Reset\nNew Log File name: {self.filename}")
+        user_id = self._session_handling()
+        self.session[user_id] = {"prompts": self._setup_prompts(),
+                                 "filename": self._setup_logfile()}
+        print(f"Reset\nNew Log File name: {self.session[user_id]['filename']}")
         # Send a redirect to the main page
         return redirect("/")
 
@@ -188,11 +198,36 @@ class LLMOrrery:
         # Return image favicon.ico
         return send_from_directory(os.path.join(self.app.root_path, "."), "img/favicon.ico", mimetype="image/vnd.microsoft.icon")
 
-    def run(self):
+    def run(self) -> None:
         """
         Runs the Flask app
         """
         self.app.run(host=self.args.host, port=self.args.port, threaded=False)
+
+    def _session_handling(self) -> str:
+        """
+        Handles session management for the application.
+        """
+        if self.config["model"].get("sessiontype", "global") == "global":
+            user_id = "global"
+        elif self.config["model"].get("sessiontype", "global") == "user":
+            if "user_id" not in session:
+                # If it's a new session, generate a unique ID and store it in the session
+                user_id = str(uuid.uuid4())
+                session["user_id"] = user_id
+            else:
+                # If it's an existing session, retrieve the user ID from the session
+                user_id = session["user_id"]
+        else:
+            # Throw value Error
+            raise ValueError(
+                f"Invalid session type: {self.config['model']['sessiontype']}")
+
+        if user_id not in self.session:
+            print("Setup User Session")
+            self.session[user_id] = {"prompts": self._setup_prompts(),
+                                     "filename": self._setup_logfile()}
+        return user_id
 
 
 if __name__ == "__main__":

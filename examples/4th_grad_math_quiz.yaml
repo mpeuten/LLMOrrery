@@ -22,7 +22,7 @@
 # SOFTWARE.
 description:
   name: 4th Grade Math quiz
-  version: 1
+  version: 2
   author: git@mpeuten.de
   description: Presents a 4th grade math quiz through the web UI
   tags: [math, quiz]
@@ -31,6 +31,8 @@ description:
 
 model:
   model: openai:gpt-4o-mini
+  sessiontype: user
+
 
 prompt:
   - system: |
